@@ -9,7 +9,7 @@ char servidorMqtt[] = "172.26.1.8";
 char portaServidorMqtt[6] = "1883";
 char tokenMqttDisp[33] = "ESP8266_TKN_NODEMCU";
 char ID [] = "Davis WS II";
-const int tempoLoop = 10000;
+const int tempoLoop = 1000;
 
 //------------------------------Deep sleep------------------------------------------------
 
@@ -135,20 +135,20 @@ void read_data(void)
   // read the Relative Humidity on analog pin A3 - fio verde
   rhRaw = analogRead(A3);
 
-  tempMap = mapfloat((1023 - (tRaw - 90)), 0.0, 1023, -45.0, 60.0);
-  rhMapTemp = mapfloat((1023 - (rhRaw - 200)), 0, 1023, 0, 100);
+  tempMap = mapfloat((1023 - (tRaw - 100)), 0.0, 1023, -45.0, 60.0);
+  rhMapTemp = mapfloat((1023 - (rhRaw - 270)), 0, 1023, 0, 100);
 
+  //caso seja primeira leitura erronia
+  if(rhMapTemp > 79 or rhMapTemp < 30){
+    read_data();
+  }
+  
   //funcao para validar a umidade do ar
   if( validarUmidade(rhMapTemp, rhMap) ){
     //altera a umidade do ar
     rhMap = rhMapTemp;
   }
 
-  //caso seja primeira leitura erronia
-  if(rhMap == 0 and rhMapTemp > 79){
-    read_data();
-  }
-  
   Counter();
 }
 
