@@ -51,12 +51,14 @@ const char* ssid3     = "extensao_iot";
 const char* password3 = "aluno123";
 
 //--------------------------------WEATHER VAR---------------------------------------------
+float listaTemperaturas[3] = {0};
+int quantidadeTemps = 0;
 
 float tRaw;              // RAW A2
 float rhRaw;             // RAW A3
 float tempMap;           // Temp celsius Davis
 float rhMap;          // Humidity Davis
-float batRaw;           //Valor RAW pino A13 (bateria) 
+float batRaw;           //Valor RAW pino A13 (bateria)
 float voltagem;         //valor em V da baterial
 float windSpeed = 0;     // Wind speed (mph)
 float wind_speed_min = 100; // Minimum wind speed (mph)
@@ -118,7 +120,7 @@ void loop()
   aferirCargaBateria();
   print_data();            // print data  in serial monitor
   thingsboard();            // sends data to thingsboard
- // enterSleepMode();
+  // enterSleepMode();
 }
 
 
@@ -129,15 +131,19 @@ void read_data(void)
 {
   //Variavel temporaria para aferixao da umidade do ar
   float rhMapTemp = 0;
+  float ultimaTemp = 0;
   
   // read the temperature on analog pin A2 - fio amarelo
   tRaw = analogRead(A2);
   // read the Relative Humidity on analog pin A3 - fio verde
   rhRaw = analogRead(A3);
 
-  tempMap = mapfloat((1023 - (tRaw - 100)), 0.0, 1023, -45.0, 60.0);
+  //tempMap = mapfloat((1023 - (tRaw - 100)), 0.0, 1023, -45.0, 60.0);
+  ultimaTemp = mapfloat((1023 - (tRaw - 100)), 0.0, 1023, -45.0, 60.0);
   rhMapTemp = mapfloat((1023 - (rhRaw - 270)), 0, 1023, 0, 100);
 
+  validarTemperatura(ultimaTemp);
+  
   //caso seja primeira leitura erronia
   if(rhMapTemp > 79 or rhMapTemp < 30){
     read_data();
@@ -152,12 +158,25 @@ void read_data(void)
   Counter();
 }
 
+void validarTemperatura(float ultimaTemp){
+  float delta = abs(ultimaTemp - tempMap);
+
+  if(delta < 0.5 or tempMap == 0){
+    tempMap = ultimaTemp;
+  }
+  else{
+    tempMap = tempMap;
+  }
+
+}
+
 //Funcao para validar a umidade do ar
-boolean validarUmidade(float rhMapTemp, float rhMapAtual){
-    if(rhMapTemp < (rhMap+3) or rhMap == 0){
-      //rhMap = rhMapTemp;
-      return true;
-    }
+boolean validarUmidade(float rhMapTemp, float rhMapAtual) {
+  if (rhMapTemp < (rhMap + 0.35) or rhMap == 0) {
+    //rhMap = rhMapTemp;
+    return true;
+  }
+
 }
 
 //função map para tipo de dados float
@@ -416,7 +435,7 @@ void print_data(void)
     Serial.print("Davis Temp A2 RAW = "); Serial.println(tRaw);
     Serial.print("Davis Humidity = "); Serial.print(rhMap); Serial.println(" %  ");
     Serial.print("Davis Humidity A3 RAW = "); Serial.println(rhRaw);
-    Serial.print("Wind_Speed= "); Serial.print((getms(windSpeed)*3.6)); Serial.println(" km/h  ");
+    Serial.print("Wind_Speed= "); Serial.print((getms(windSpeed) * 3.6)); Serial.println(" km/h  ");
     Serial.print("Wind_Speed= "); Serial.print(getms(windSpeed)); Serial.println(" m/s  ");
     Serial.print("Min = ");  //Minimum wind speed
     Serial.print(wind_speed_min / 2.236 ); Serial.print(" m/s ");
@@ -434,7 +453,7 @@ void print_data(void)
     Serial.print("Rain = "); Serial.print(rain); Serial.print(" mm  ");  Serial.print("Rain rate = "); Serial.print(rainrate); Serial.println(" mm");
     Serial.print("Signal quality  = "); Serial.println(quality);
     Serial.print("RSSI  = "); Serial.print(dBm); Serial.println("dBm ");
-    Serial.print("Bateria RAW "); Serial.println(batRaw); 
+    Serial.print("Bateria RAW "); Serial.println(batRaw);
     Serial.print("Bateria "); Serial.print(voltagem); Serial.println(" V");
     Serial.println(" ");
     Serial.print("Counter = "); Serial.println(counter);
@@ -457,13 +476,13 @@ void thingsboard(void)
   if (client.connect("Davis", tokenMqttDisp, NULL)) { // use ip 184.106.153.149 or api.thingspeak.com
 
     Serial.println( "[DONE]" );
-    
+
     client.subscribe("v1/devices/me/rpc/request/+");
     String pluviometroStr = String(rain);
     String humidadeStr = String(rhMap);
     String temperatureStr = String(tempMap);
     String windStrengthStr = String(getWindStrength(windSpeed));
-    String velocidadeVentoStr = String((getms(windSpeed)*3.6));
+    String velocidadeVentoStr = String((getms(windSpeed) * 3.6));
     String rajadaVentoStr = String(windgustmph * 0.447 * 3);
     String pointerStr = String(CalDirection);
     String voltagemStr = String(voltagem);
@@ -478,7 +497,7 @@ void thingsboard(void)
     enviarInfoParaServidorMQTT("voltagem", voltagemStr, client);
 
     delay(1000);
-    
+
   } else {
     Serial.print( "[FAILED] [ rc = " );
     Serial.print( client.state() );
@@ -496,7 +515,7 @@ void aferirCargaBateria()
   batRaw = analogRead(A13);
   float volt = map (batRaw, 420, 585, 280, 413);
   voltagem = volt / 100;
- 
+
 }
 
 //------------------------------------------------------------------------------------------------------------
